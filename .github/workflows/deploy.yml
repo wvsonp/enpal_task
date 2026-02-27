@@ -1,0 +1,12 @@
+# Placeholder: deployment
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder
+        run: echo "deployment would happen here (e.g deploy champion model to a serving endpoint)"
