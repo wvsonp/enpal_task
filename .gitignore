@@ -11,6 +11,5 @@ wheels/
 
 # MLflow and env
 .env
-mlruns.db
-mlruns/
-mlartifacts/
+# mlruns.db
+# mlruns/
