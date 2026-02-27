@@ -16,6 +16,7 @@ uv sync --dev
 
 ```bash
 cp .env.example .env
+(in windows 'copy' instead of 'cp')
 ```
 
 `.env` defaults:
@@ -34,7 +35,8 @@ I added aliasing to show how it would be connected to Deployment and Orchesterat
 
 #### run the full flow (recommended)
 
-Open and run `demo.ipynb`. It covers:
+Open and run `demo.ipynb`. ! Please make sure the correct version of python path in .venv is selected as notebook kernel ! 
+It covers:
 
 - train on `WA_Fn-UseC_-Telco-Customer-C.csv`
 - log params/metrics + model to MLflow
