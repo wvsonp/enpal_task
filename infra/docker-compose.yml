@@ -1,0 +1,99 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: mlflow-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - mlflow_postgres_data:/var/lib/postgresql/data
+    networks:
+      - mlflow-net
+  minio:
+    image: minio/minio:latest
+    container_name: mlflow-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    volumes:
+      - mlflow_minio_data:/data
+    networks:
+      - mlflow-net
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: mlflow-server
+    depends_on:
+      - postgres
+      - minio
+    environment:
+      # S3/MinIO config for artifact store
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      # Backend store (Postgres)
+      BACKEND_STORE_URI: ${MLFLOW_BACKEND_DB_URI}
+      # Artifact root (bucket "mlflow")
+      ARTIFACT_ROOT: s3://mlflow/
+    command: >
+      mlflow server
+      --backend-store-uri ${BACKEND_STORE_URI}
+      --default-artifact-root ${ARTIFACT_ROOT}
+      --host 0.0.0.0
+      --port 5000
+    ports:
+      - "5000:5000"
+    networks:
+      - mlflow-net
+  minio-init:
+    image: minio/mc:latest
+    container_name: mlflow-minio-init
+    depends_on:
+      - minio
+    networks:
+      - mlflow-net
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    entrypoint: >
+      /bin/sh -c "
+      until (mc alias set local http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD); do
+        echo 'Waiting for MinIO...';
+        sleep 2;
+      done &&
+      mc mb --ignore-existing local/mlflow &&
+      echo 'Bucket mlflow ready.'
+      "
+    restart: "on-failure"
+  airflow:
+    build:
+      context: ..
+      dockerfile: airflow.Dockerfile
+    container_name: airflow
+    depends_on:
+      - mlflow
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__EXECUTOR: "LocalExecutor"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "sqlite:////opt/airflow/airflow.db"
+    command: ["airflow", "standalone"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../airflow/dags:/opt/airflow/dags
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ..:/opt/project
+    networks:
+      - mlflow-net
+networks:
+  mlflow-net:
+volumes:
+  mlflow_postgres_data:
+  mlflow_minio_data:
