@@ -13,7 +13,7 @@ from mlflow.tracking.fluent import log_metrics, log_param, start_run
 
 def load_config() -> None:
     """Load .env and set MLflow tracking URI and experiment."""
-    load_dotenv()
+    load_dotenv(override=False)
     uri = os.environ.get("MLFLOW_TRACKING_URI", "sqlite:///mlruns.db")
     experiment = os.environ.get("MLFLOW_EXPERIMENT_NAME", "churn-prediction")
     mlflow.set_tracking_uri(uri)
